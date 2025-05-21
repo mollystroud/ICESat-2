@@ -1,12 +1,10 @@
 ###############################################################################
 # Code to create maps of USA and Lake Tahoe
+# Written by Molly Stroud 5/21/25
 ###############################################################################
-
-library(ggplot2)
-library(dplyr)
-library(tidyverse)
-library(maps)
-library(rnaturalearth)
+require(pacman)
+p_load(ggplot2, dplyr, tidyverse, maps, rnaturalearth)
+###############################################################################
 
 # grab state data
 all_states <- map_data("state")

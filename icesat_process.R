@@ -1,14 +1,15 @@
-library(ggplot2)
-library(tidyverse)
-library(geosphere)
-library(patchwork)
+###############################################################################
+# Code to visualize ICESat-2 data from downloaded csv files
+# Written by Molly Stroud 5/21/25
+###############################################################################
+require(pacman)
+p_load(ggplot2, tidyverse, geosphere, patchwork)
+###############################################################################
+
 
 data <- read_csv("Desktop/icesat/icesat_2023-11-05.csv")
 colnames(data)[4] <- 'height'
 colnames(data)[5] <- 'confidence'
-
-
-
 
 
 test <- mutate(data, 
