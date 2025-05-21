@@ -121,9 +121,9 @@ ggplot(cairo[cairo$confidence > 3,], aes(x = along_distance/1000, y = height)) +
 # Lake Tahoe example
 #########################################
 
-tahoe_1_2022 <- read_csv("Desktop/icesat/tahoe/photon_2022-01-07_tahoe.csv")
-tahoe_10_2022 <- read_csv("Desktop/icesat/tahoe/photon_2022-10-06_tahoe.csv")
-tahoe_10_2023 <- read_csv("Desktop/icesat/tahoe/photon_2023-10-04_tahoe.csv")
+tahoe_1_2022 <- read_csv("/Users/mollystroud/Desktop/icesat/tahoe/photon_2022-01-07_tahoe.csv")
+tahoe_10_2022 <- read_csv("/Users/mollystroud/Desktop/icesat/tahoe/photon_2022-10-06_tahoe.csv")
+tahoe_10_2023 <- read_csv("/Users/mollystroud/Desktop/icesat/tahoe/photon_2023-10-04_tahoe.csv")
 
 # 1-7-2022
 colnames(tahoe_1_2022)[4] <- 'height'
@@ -135,10 +135,10 @@ tahoe_1_2022 <- na.omit(tahoe_1_2022)
 tahoe_1_2022$along_distance <- cumsum(tahoe_1_2022$Distance)
 
 tahoe_plot_1_2022 <- ggplot(tahoe_1_2022[tahoe_1_2022$confidence > 3,], aes(x = along_distance/1000, y = height)) + 
-  geom_point(size = 0.5, color = '#306B34') +
+  geom_point(size = 0.5, color = '#087F8C') +
   labs(x = 'Along-Track Distance (km)', y = 'Height (m)', 
        title = "2022-01-07, turbidity (01-20) = 0.45 FNU") +
-  theme_bw() +
+  theme_classic() +
   ylim(1860, 1878)
 tahoe_plot_1_2022
 
@@ -152,10 +152,10 @@ tahoe_10_2022 <- na.omit(tahoe_10_2022)
 tahoe_10_2022$along_distance <- cumsum(tahoe_10_2022$Distance)
 
 tahoe_plot_10_2022 <- ggplot(tahoe_10_2022[tahoe_10_2022$confidence > 3,], aes(x = along_distance/1000, y = height)) + 
-  geom_point(size = 0.5, color = '#306B34') +
+  geom_point(size = 0.5, color = '#087F8C') +
   labs(x = 'Along-Track Distance (km)', y = 'Height (m)', 
        title = "2022-10-06, turbidity (10-11) = 20.9 FNU") +
-  theme_bw() +
+  theme_classic() +
   ylim(1860, 1878) + xlim(4, 30)
 tahoe_plot_10_2022
 
@@ -169,10 +169,10 @@ tahoe_10_2023 <- na.omit(tahoe_10_2023)
 tahoe_10_2023$along_distance <- cumsum(tahoe_10_2023$Distance)
 
 tahoe_plot_10_2023 <- ggplot(tahoe_10_2023[tahoe_10_2023$confidence > 3,], aes(x = along_distance/1000, y = height)) + 
-  geom_point(size = 0.5, color = '#306B34') +
+  geom_point(size = 0.5, color = '#087F8C') +
   labs(x = 'Along-Track Distance (km)', y = 'Height (m)', 
        title = "2023-10-04, turbidity (10-03) = 20 FNU") +
-  theme_bw() +
+  theme_classic() +
   ylim(1860, 1878) + xlim(3, 35)
 tahoe_plot_10_2023
 

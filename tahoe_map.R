@@ -28,7 +28,7 @@ p
 p + geom_polygon(data = usa, aes(x=long, y=lat, group=group), color = 'black', fill = NA) +
   theme_void() +
   coord_fixed(1.3) +
-  geom_rect(aes(xmin = -125, xmax = -116, ymin = 35, ymax = 43), 
+  geom_rect(aes(xmin = -122, xmax = -118, ymin = 37.5, ymax = 40.5), 
             color = "black", fill = NA, linewidth = 1)
 
 
@@ -40,7 +40,7 @@ ggplot() +
   geom_sf(data = laketahoe, fill = 'lightblue') +
   #geom_point(data = gauges, aes(x = dec_long_v, y = dec_lat_va), color = 'blue') +
   theme_void() +
-  coord_sf(xlim = c(-125, -116), ylim = c(35, 43))
+  coord_sf(xlim = c(-122, -118), ylim = c(37.5, 40.5))
 
 ggplot() + 
   geom_sf(data = laketahoe, fill = 'lightblue') +
