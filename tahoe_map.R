@@ -1,39 +1,36 @@
+###############################################################################
+# Code to create maps of USA and Lake Tahoe
+###############################################################################
+
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(maps)
+library(rnaturalearth)
 
 # grab state data
-all_states <- map_data("state")  
-# make us outline
-p <- ggplot() +
-  geom_polygon( data=all_states, aes(x=long, y=lat, group = group), color='gray', fill="gray" )
-p
-# get just louisiana
-louisiana <- filter(all_states, region == "louisiana")
-usa <- map_data('usa')
-
-# add louisiana to map of usa
-p + geom_polygon(data = louisiana, aes(x=long, y=lat, group = group), color = 'black', fill="#729B79") +
-  geom_polygon(data = usa, aes(x=long, y=lat, group=group), color = 'black', fill = NA) +
-  theme_classic() +
-  coord_fixed(1.3)
-
-
-# make map of usa with states outlined
-all_states <- map_data("state")  
-p <- ggplot() +
-  geom_polygon( data=all_states, aes(x=long, y=lat, group = group), color='black', fill="gray" )
-p
-p + geom_polygon(data = usa, aes(x=long, y=lat, group=group), color = 'black', fill = NA) +
+all_states <- map_data("state")
+usa <- map_data("usa")
+# make map of usa with states outlined and rectangle around AOI
+ggplot() + 
+  geom_polygon(data = usa, aes(x=long, y=lat, group=group), 
+               color = 'black', fill = NA) +
+  geom_polygon( data=all_states, aes(x=long, y=lat, group = group), 
+                color='black', fill="gray" ) +
   theme_void() +
   coord_fixed(1.3) +
   geom_rect(aes(xmin = -122, xmax = -118, ymin = 37.5, ymax = 40.5), 
             color = "black", fill = NA, linewidth = 1)
 
+# map zoomed in AOI with Lake Tahoe
+# download Lake Tahoe
+lakes <- rnaturalearth::ne_download(scale = 50, 
+                                    type = 'lakes', 
+                                    category = 'physical') %>% 
+  sf::st_as_sf(lakes110, crs = 4269)
+laketahoe <- lakes[lakes$label == 'Lake Tahoe',]
+laketahoe <- laketahoe[3,]
 
-# instead of gauges, put in your own point data or river shapefile
-#gauges <- read_csv() # your data here
 ggplot() + 
   geom_polygon(data=all_states, aes(x=long, y=lat, group = group), color='black', fill="gray") +
   #geom_polygon(data = usa, aes(x=long, y=lat, group=group), color = 'black', fill = NA) +
@@ -47,12 +44,6 @@ ggplot() +
   theme_classic() +
   coord_sf(crs = 4269)
 
-# download lakes geometries
-lakes <- rnaturalearth::ne_download(scale = 50, 
-                                    type = 'lakes', 
-                                    category = 'physical') %>% 
-  sf::st_as_sf(lakes110, crs = 4269)
-laketahoe <- lakes[lakes$label == 'Lake Tahoe',]
-laketahoe <- laketahoe[3,]
+
 
 
