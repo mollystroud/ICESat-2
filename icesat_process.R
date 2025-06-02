@@ -11,7 +11,6 @@ data <- read_csv("Desktop/icesat/icesat_2023-11-05.csv")
 colnames(data)[4] <- 'height'
 colnames(data)[5] <- 'confidence'
 
-
 test <- mutate(data, 
                Distance = distHaversine(cbind(longitude, latitude),
                                         cbind(lag(longitude), lag(latitude))))
