@@ -17,7 +17,7 @@ ggplot() +
                 color='black', fill="gray" ) +
   theme_void() +
   coord_fixed(1.3) +
-  geom_rect(aes(xmin = -122, xmax = -118, ymin = 37.5, ymax = 40.5), 
+  geom_rect(aes(xmin = -120.202, xmax = -119.846, ymin = 38.921, ymax = 39.256), 
             color = "black", fill = NA, linewidth = 1)
 
 # map zoomed in AOI with Lake Tahoe
@@ -35,7 +35,7 @@ ggplot() +
   geom_sf(data = laketahoe, fill = 'lightblue') +
   #geom_point(data = gauges, aes(x = dec_long_v, y = dec_lat_va), color = 'blue') +
   theme_void() +
-  coord_sf(xlim = c(-122, -118), ylim = c(37.5, 40.5))
+  coord_sf(xlim = c(-121, -119), ylim = c(38.3, 39.8))
 
 ggplot() + 
   geom_sf(data = laketahoe, fill = 'lightblue') +
