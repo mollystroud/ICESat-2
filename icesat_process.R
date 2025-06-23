@@ -7,122 +7,122 @@ p_load(ggplot2, tidyverse, geosphere, patchwork, ggside, plotgrid)
 ###############################################################################
 
 
-data <- read_csv("Desktop/icesat/icesat_2023-11-05.csv")
-colnames(data)[4] <- 'height'
-colnames(data)[5] <- 'confidence'
-
-test <- mutate(data, 
+###############################################################################
+# cedar lake, canada
+###############################################################################
+raw_cedar <- read_csv("/Users/mollystroud/Desktop/icesat/icesat_2023-08-17.csv")
+colnames(raw_cedar)[4] <- 'height'
+colnames(raw_cedar)[5] <- 'confidence'
+cedar <- mutate(raw_cedar, 
                Distance = distHaversine(cbind(longitude, latitude),
                                         cbind(lag(longitude), lag(latitude))))
-test <- na.omit(test)
-test$along_distance <- cumsum(test$Distance)
+cedar <- na.omit(cedar)
+cedar$along_distance <- cumsum(cedar$Distance)
+cedar <- cedar[cedar$confidence > 3,]
 
-ggplot(test[test$confidence > 3,], aes(x = along_distance/1000, y = height)) + 
-  geom_point(size = 0.5, color = '#6C4B5E') +
-  labs(x = 'Along-Track Distance (km)', y = 'Height (m)', 
-       title = "Plaquemines Parish, LA, 2023-11-05") +
-  theme_bw() +
-  ylim(-40, -20) + xlim(15, 80)
-
-
-
-data <- read_csv("/Users/mollystroud/Desktop/icesat/icesat_2023-08-17.csv")
-colnames(data)[4] <- 'height'
-colnames(data)[5] <- 'confidence'
-test <- mutate(data, 
-               Distance = distHaversine(cbind(longitude, latitude),
-                                        cbind(lag(longitude), lag(latitude))))
-test <- na.omit(test)
-test$along_distance <- cumsum(test$Distance)
-test <- test[test$confidence > 3,]
-
-cedar <- ggplot() + 
-  geom_point(data = test[test$along_distance/1000 > 25,], 
+cedar_plot <- ggplot() + 
+  geom_point(data = cedar[cedar$along_distance/1000 > 25,], 
              aes(x = along_distance/1000, y = height), 
              size = 0.5, color = '#1D3557') +
-  geom_point(data = test[test$along_distance/1000 < 25,],
+  geom_point(data = cedar[cedar$along_distance/1000 < 25,],
              aes(x = along_distance/1000, y = height), 
              size = 0.5, color = '#E63946') +
-  labs(x = 'Along-Track Distance (km)', y = 'Height (m)', 
-       title = "Cedar Lake and Lake Winnipegosis, Canada, 2023-08-17") +
+  labs(x = 'Along-Track Distance (km)', y = 'Height (m)') + #, 
+       #title = "Cedar Lake and Lake Winnipegosis, Canada, 2023-08-17") +
   theme_classic() +
-  ylim(220, 235) + xlim(4, 46.5)
-cedar
+  ylim(220, 227) + xlim(4, 46.5)
+cedar_plot
 # plot density
 cedar_density <- ggplot() +
-  geom_density(data = test[test$along_distance/1000 < 25,],
-               aes(y = height), color = '#E63946', linewidth = 2) +
-  geom_density(data = test[test$along_distance/1000 > 25,],
-                 aes(y = height), color = '#1D3557', linewidth = 2) +
+  geom_density(data = cedar[cedar$along_distance/1000 < 25,],
+               aes(y = height), color = '#E63946', linewidth = 1) +
+  geom_density(data = cedar[cedar$along_distance/1000 > 25,],
+                 aes(y = height), color = '#1D3557', linewidth = 1) +
   theme_classic() +
-  ylim(218, 226) + xlim(0, 0.5)
+  ylim(220, 226) + xlim(0, 0.5)
+  #ylim(218, 226) + xlim(0, 0.5)
 cedar_density
 
-cedar + cedar_density
   
-  
-  
-  
-  
-  
-  
-  
-data <- read_csv("icesat_2024-09-07.csv")
-colnames(data)[4] <- 'height'
-colnames(data)[5] <- 'confidence'
-test <- mutate(data, 
+###############################################################################
+# lake buchanan, tx
+###############################################################################
+buchanan_raw <- read_csv("/Users/mollystroud/Desktop/icesat/icesat_2024-09-07.csv")
+colnames(buchanan_raw)[4] <- 'height'
+colnames(buchanan_raw)[5] <- 'confidence'
+buchanan <- mutate(buchanan_raw, 
                Distance = distHaversine(cbind(longitude, latitude),
                                         cbind(lag(longitude), lag(latitude))))
-test <- na.omit(test)
-test$along_distance <- cumsum(test$Distance)
+buchanan <- na.omit(buchanan)
+buchanan$along_distance <- cumsum(buchanan$Distance)
+buchanan <- buchanan[buchanan$confidence > 3,]
 
-ggplot(test[test$confidence > 3,], aes(x = along_distance/1000, y = height)) + 
-  geom_point(size = 0.5, color = '#087F8C') +
-  labs(x = 'Along-Track Distance (km)', y = 'Height (m)', 
-       title = "Lake Buchanan, TX, 2024-09-07") +
+buchanan_plot <- ggplot() +
+  geom_point(data = buchanan[buchanan$along_distance/1000 > 6.5,], aes(x = along_distance/1000, y = height),
+             size = 0.5, color = '#E63946') + 
+  geom_point(data = buchanan[buchanan$along_distance/1000 < 6.5,], aes(x = along_distance/1000, y = height),
+             size = 0.5, color = '#1D3557') +
+  labs(x = 'Along-Track Distance (km)', y = 'Height (m)') + #, 
+       #title = "Lake Buchanan, TX, 2024-09-07") +
   theme_classic() +
-  ylim(274, 287) + xlim(2.5, 16)
+  ylim(276, 281.5) + xlim(2.5, 16)
+buchanan_plot
+
+buchanan_density <- ggplot() +
+  geom_density(data = buchanan[buchanan$along_distance/1000 < 6.5,],
+               aes(y = height), color = '#E63946', linewidth = 1) +
+  geom_density(data = buchanan[buchanan$along_distance/1000 > 6.5,],
+               aes(y = height), color = '#1D3557', linewidth = 1) +
+  theme_classic() +
+  ylim(276, 281.2) + xlim(0, 0.75)
+#ylim(218, 226) + xlim(0, 0.5)
+buchanan_density
 
 
-data <- read_csv("amazon_madeira/icesat_2022-09-02.csv")
-colnames(data)[4] <- 'height'
-colnames(data)[5] <- 'confidence'
-test <- mutate(data, 
+###############################################################################
+# amazon confluence
+###############################################################################
+amazon_raw <- read_csv("amazon_madeira/icesat_2022-09-02.csv")
+colnames(amazon_raw)[4] <- 'height'
+colnames(amazon_raw)[5] <- 'confidence'
+amazon <- mutate(amazon_raw, 
                Distance = distHaversine(cbind(longitude, latitude),
                                         cbind(lag(longitude), lag(latitude))))
-test <- na.omit(test)
-test$along_distance <- cumsum(test$Distance)
+amazon <- na.omit(amazon)
+amazon$along_distance <- cumsum(amazon$Distance)
+amazon <- amazon[amazon$confidence > 3,]
 
-working <- ggplot(test[test$confidence > 3,], aes(x = along_distance/1000, y = height)) + 
+amazon_plot <- ggplot(amazon, aes(x = along_distance/1000, y = height)) + 
   geom_point(size = 0.5, color = '#087F8C') +
   labs(x = 'Along-Track Distance (km)', y = 'Height (m)', 
        title = "Amazon/Madeira River confluence, 2022-09-02") +
   theme_classic() +
   ylim(-0, 4) + #xlim(4, 14) + 
   scale_x_reverse() + xlim(14, 4)
-working
+amazon_plot
 
-data_w <- read_csv("amazon_madeira/icesat_2024-08-16.csv")
-colnames(data_w)[4] <- 'height'
-colnames(data_w)[5] <- 'confidence'
-test_w <- mutate(data_w, 
+amazon_raw_w <- read_csv("amazon_madeira/icesat_2024-08-16.csv")
+colnames(amazon_raw_w)[4] <- 'height'
+colnames(amazon_raw_w)[5] <- 'confidence'
+amazon_w <- mutate(amazon_raw_w, 
                Distance = distHaversine(cbind(longitude, latitude),
                                         cbind(lag(longitude), lag(latitude))))
-test_w <- na.omit(test_w)
-test_w$along_distance <- cumsum(test_w$Distance)
+amazon_w <- na.omit(amazon_w)
+amazon_w$along_distance <- cumsum(amazon_w$Distance)
+amazon_w <- amazon_w[amazon_w$confidence > 3,]
 
-not_working <- ggplot(test_w[test_w$confidence > 3,], aes(x = along_distance/1000, y = height)) + 
+amazon_plot_w <- ggplot(amazon_w, aes(x = along_distance/1000, y = height)) + 
   geom_point(size = 0.5, color = '#087F8C') +
   labs(x = 'Along-Track Distance (km)', y = 'Height (m)', 
        title = "Amazon/Madeira River confluence, 2024-08-16") +
   theme_classic() +
   ylim(-2, 2) + xlim(4, 14)
-not_working
-
-library(patchwork)
-working + not_working
+amazon_plot_w
 
 
+###############################################################################
+# ohio / mississippi confluence
+###############################################################################
 cairo <- read_csv("icesat_2024-04-25_cairo.csv")
 colnames(cairo)[4] <- 'height'
 colnames(cairo)[5] <- 'confidence'
