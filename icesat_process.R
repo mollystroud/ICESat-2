@@ -3,7 +3,7 @@
 # Written by Molly Stroud 5/21/25
 ###############################################################################
 require(pacman)
-p_load(ggplot2, tidyverse, geosphere, patchwork, ggside, plotgrid, viridis)
+p_load(ggplot2, tidyverse, geosphere, patchwork, ggside, plotgrid, viridis, moments)
 ###############################################################################
 
 ###############################################################################
@@ -21,6 +21,18 @@ clean_icesat <- function(dataset) {
   data$along_distance <- cumsum(data$Distance)
   data <- data[data$confidence > 3,] # get only good data
   return(data)
+}
+
+###############################################################################
+# Make function to get relevant stats 
+###############################################################################
+photon_stats <- function(clear, turbid) {
+  print(paste0("Clear stdev = ", sd(clear$height)))
+  print(paste0("Turbid stdev = ", sd(turbid$height)))
+  print(paste0("Clear skewness = ", moments::skewness(clear$height)))
+  print(paste0("Turbid skewness = ", moments::skewness(turbid$height)))
+  print(paste0("Clear kurtosis = ", moments::kurtosis(clear$height)))
+  print(paste0("Turbid kurtosis = ", moments::kurtosis(turbid$height)))
 }
 
 ###############################################################################
@@ -66,16 +78,10 @@ cedar_density_subset <- ggplot() +
 cedar_density_subset
 ggsave(plot = cedar_density_subset, "cedar_density_subset.pdf", width = 2, height = 5)
 
-# calculate sd
-clear <- cedar[cedar$along_distance/1000 < 25,]
-turb <- cedar[cedar$along_distance/1000 > 25,]
-
-sd(clear$height)
-sd(turb$height)
-summary(clear$height)
-summary(turb$height)
-
-
+# calculate stats
+clear_cedar <- cedar[cedar$along_distance/1000 < 25,]
+turb_cedar <- cedar[cedar$along_distance/1000 > 25,]
+photon_stats(clear_cedar, turb_cedar)
 ks.test(x = clear$height, y = turb$height)
 
 ###############################################################################
@@ -121,26 +127,17 @@ buchanan_density_subset <- ggplot() +
 buchanan_density_subset
 ggsave(plot = buchanan_density_subset, "buchanan_density_subset.pdf", width = 2, height = 5)
 
-# calculate variance
-clear <- buchanan[buchanan$along_distance/1000 > 6.5,]
-turb <- buchanan[buchanan$along_distance/1000 < 6.5,]
-
-sd(clear$height)
-sd(turb$height)
-summary(clear$height)
-summary(turb$height)
+# calculate stats
+clear_buchanan <- buchanan[buchanan$along_distance/1000 > 6.5,]
+turb_buchanan <- buchanan[buchanan$along_distance/1000 < 6.5,]
+photon_stats(clear_buchanan, turb_buchanan)
+ks.test(x = clear$height, y = turb$height)
 
 ###############################################################################
 # amazon confluence
 ###############################################################################
 amazon <- clean_icesat("/Users/mollystroud/Desktop/icesat/amazon_madeira/icesat_2022-09-02.csv")
 amazon <- amazon[amazon$along_distance >= 4000 & amazon$along_distance <= 14000,]
-
-#ggplot()+
-  #geom_point(data = amazon[amazon$along_distance/1000 > 8.8,], aes(x = longitude, y = latitude),
-  #           size = 0.5, color = '#E63A47') + 
-  #geom_point(data = amazon[amazon$along_distance/1000 < 8.8,], aes(x = longitude, y = latitude),
-  #           size = 0.5, color = '#4EA699')
 
 amazon_plot <- ggplot() +
   geom_point(data = amazon[amazon$along_distance/1000 > 8.8,], aes(x = along_distance/1000, y = height),
@@ -178,7 +175,13 @@ amazon_density_subset <- ggplot() +
 amazon_density_subset
 ggsave(plot = amazon_density_subset, "amazon_density_subset.pdf", width = 2, height = 5)
 
+# calculate stats
+clear_amazon <- amazon[amazon$along_distance/1000 < 8.8,]
+turb_amazon <- amazon[amazon$along_distance/1000 > 8.8,]
+photon_stats(clear_amazon, turb_amazon)
+ks.test(x = clear$height, y = turb$height)
 
+# amazon 2024
 amazon_w <- clean_icesat("/Users/mollystroud/Desktop/icesat/amazon_madeira/icesat_2024-08-16.csv")
 amazon_w <- amazon_w[amazon_w$along_distance >= 4300 & amazon_w$along_distance <= 16000,]
 
@@ -215,16 +218,21 @@ ggsave(plot = amazon_density_plot_w, "amazon_density_24.pdf", width = 2, height 
 
 # subset
 amazon_density_subset_24 <- ggplot() +
-  geom_density(data = amazon_w[amazon_w$along_distance/1000 > 8.8,],
+  geom_density(data = amazon_w[amazon_w$along_distance/1000 < 10.5,],
                aes(y = height), color = '#E63A47', linewidth = 1) +
-  geom_density(data = amazon_w[amazon_w$along_distance/1000 < 8.8,],
+  geom_density(data = amazon_w[amazon_w$along_distance/1000 > 10.5,],
                aes(y = height), color = '#4EA699', linewidth = 1) +
   theme_classic() +
   ylim(-2.5, 1.5) +
-  coord_cartesian(ylim = c(-2.5, -0.85), xlim = c(0, 0.5))
+  coord_cartesian(ylim = c(-2.5, -0.85), xlim = c(0, 0.1))
 amazon_density_subset_24
 ggsave(plot = amazon_density_subset_24, "amazon_density_subset_24.pdf", width = 2, height = 5)
 
+# calculate stats
+clear_amazon_w <- amazon_w[amazon_w$along_distance/1000 > 10.5,]
+turb_amazon_w <- amazon_w[amazon_w$along_distance/1000 < 10.5,]
+photon_stats(clear_amazon_w, turb_amazon_w)
+ks.test(x = clear$height, y = turb$height)
 
 ###############################################################################
 # ohio / mississippi confluence
@@ -269,9 +277,16 @@ cairo_density_subset <- ggplot() +
 cairo_density_subset
 ggsave(plot = cairo_density_subset, "cairo_density_subset.pdf", width = 2, height = 5)
 
-#########################################
-# Lake Tahoe example
-#########################################
+# calculate stats
+clear_cairo <- cairo[cairo$along_distance/1000 < 1,]
+turb_cairo <- cairo[cairo$along_distance/1000 > 1,]
+photon_stats(clear_cairo, turb_cairo)
+ks.test(x = clear$height, y = turb$height)
+
+
+###############################################################################
+# lake tahoe 
+###############################################################################
 
 tahoe_1_2022 <- read_csv("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2022-01-07_LTP_242.csv")
 tahoe_12_2022 <- read_csv("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2022-12-08_LTP_1210.csv")
