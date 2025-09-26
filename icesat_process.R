@@ -3,7 +3,7 @@
 # Written by Molly Stroud 5/21/25
 ###############################################################################
 require(pacman)
-p_load(ggplot2, tidyverse, geosphere, patchwork, ggside, plotgrid, viridis, moments)
+p_load(ggplot2, tidyverse, geosphere, patchwork, ggside, moments, twosamples)
 ###############################################################################
 
 ###############################################################################
@@ -82,7 +82,8 @@ ggsave(plot = cedar_density_subset, "cedar_density_subset.pdf", width = 2, heigh
 clear_cedar <- cedar[cedar$along_distance/1000 < 25,]
 turb_cedar <- cedar[cedar$along_distance/1000 > 25,]
 photon_stats(clear_cedar, turb_cedar)
-ks.test(x = clear$height, y = turb$height)
+ks.test(x = clear_cedar$height, y = turb_cedar$height)
+ad_test(clear_cedar$height, turb_cedar$height)
 
 ###############################################################################
 # lake buchanan, tx
@@ -131,7 +132,8 @@ ggsave(plot = buchanan_density_subset, "buchanan_density_subset.pdf", width = 2,
 clear_buchanan <- buchanan[buchanan$along_distance/1000 > 6.5,]
 turb_buchanan <- buchanan[buchanan$along_distance/1000 < 6.5,]
 photon_stats(clear_buchanan, turb_buchanan)
-ks.test(x = clear$height, y = turb$height)
+ks.test(x = clear_buchanan$height, y = turb_buchanan$height)
+ad_test(clear_buchanan$height, turb_buchanan$height)
 
 ###############################################################################
 # amazon confluence
@@ -179,7 +181,8 @@ ggsave(plot = amazon_density_subset, "amazon_density_subset.pdf", width = 2, hei
 clear_amazon <- amazon[amazon$along_distance/1000 < 8.8,]
 turb_amazon <- amazon[amazon$along_distance/1000 > 8.8,]
 photon_stats(clear_amazon, turb_amazon)
-ks.test(x = clear$height, y = turb$height)
+ks.test(x = clear_amazon$height, y = turb_amazon$height)
+ad_test(clear_amazon$height, turb_amazon$height)
 
 # amazon 2024
 amazon_w <- clean_icesat("/Users/mollystroud/Desktop/icesat/amazon_madeira/icesat_2024-08-16.csv")
@@ -232,7 +235,7 @@ ggsave(plot = amazon_density_subset_24, "amazon_density_subset_24.pdf", width = 
 clear_amazon_w <- amazon_w[amazon_w$along_distance/1000 > 10.5,]
 turb_amazon_w <- amazon_w[amazon_w$along_distance/1000 < 10.5,]
 photon_stats(clear_amazon_w, turb_amazon_w)
-ks.test(x = clear$height, y = turb$height)
+ks.test(x = clear_amazon_w$height, y = turb_amazon_w$height)
 
 ###############################################################################
 # ohio / mississippi confluence
@@ -281,27 +284,19 @@ ggsave(plot = cairo_density_subset, "cairo_density_subset.pdf", width = 2, heigh
 clear_cairo <- cairo[cairo$along_distance/1000 < 1,]
 turb_cairo <- cairo[cairo$along_distance/1000 > 1,]
 photon_stats(clear_cairo, turb_cairo)
-ks.test(x = clear$height, y = turb$height)
+ks.test(x = clear_cairo$height, y = turb_cairo$height)
+ad_test(clear_buchanan$height, turb_cairo$height)
 
 
 ###############################################################################
 # lake tahoe 
 ###############################################################################
-
-tahoe_1_2022 <- read_csv("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2022-01-07_LTP_242.csv")
-tahoe_12_2022 <- read_csv("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2022-12-08_LTP_1210.csv")
-tahoe_7_2023 <- read_csv("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2023-07-06_MLTP_242.csv")
-tahoe_10_2023 <- read_csv("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2023-10-04_LTP_242.csv")
+tahoe_1_2022 <- clean_icesat("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2022-01-07_LTP_242.csv")
+tahoe_12_2022 <- clean_icesat("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2022-12-08_LTP_1210.csv")
+tahoe_7_2023 <- clean_icesat("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2023-07-06_MLTP_242.csv")
+tahoe_10_2023 <- clean_icesat("/Users/mollystroud/Desktop/icesat/ICESat-2/downloaded_csvs/2023-10-04_LTP_242.csv")
 
 # 1-7-2022
-colnames(tahoe_1_2022)[4] <- 'height'
-colnames(tahoe_1_2022)[5] <- 'confidence'
-tahoe_1_2022 <- mutate(tahoe_1_2022, 
-                Distance = distHaversine(cbind(longitude, latitude),
-                                         cbind(lag(longitude), lag(latitude))))
-tahoe_1_2022 <- na.omit(tahoe_1_2022)
-tahoe_1_2022$along_distance <- cumsum(tahoe_1_2022$Distance)
-
 tahoe_plot_1_2022 <- ggplot(tahoe_1_2022[tahoe_1_2022$confidence > 2 & 
                                            tahoe_1_2022$beam == 'gt2r',], 
                             aes(x = along_distance/1000, y = height)) + 
@@ -311,16 +306,9 @@ tahoe_plot_1_2022 <- ggplot(tahoe_1_2022[tahoe_1_2022$confidence > 2 &
   theme_classic() +
   ylim(1860, 1878)
 tahoe_plot_1_2022
-
+sd(tahoe_1_2022[tahoe_1_2022$confidence > 2 & 
+                  tahoe_1_2022$beam == 'gt2r',]$height)
 # 12-8-2022
-colnames(tahoe_12_2022)[4] <- 'height'
-colnames(tahoe_12_2022)[5] <- 'confidence'
-tahoe_12_2022 <- mutate(tahoe_12_2022, 
-                       Distance = distHaversine(cbind(longitude, latitude),
-                                                cbind(lag(longitude), lag(latitude))))
-tahoe_12_2022 <- na.omit(tahoe_12_2022)
-tahoe_12_2022$along_distance <- cumsum(tahoe_12_2022$Distance)
-
 tahoe_plot_12_2022 <- ggplot(tahoe_12_2022[tahoe_12_2022$confidence > 2 &
                                              tahoe_12_2022$beam == 'gt1r',], 
                              aes(x = along_distance/1000, y = height)) + 
@@ -330,18 +318,10 @@ tahoe_plot_12_2022 <- ggplot(tahoe_12_2022[tahoe_12_2022$confidence > 2 &
   theme_classic() +
   ylim(1860, 1878)
 tahoe_plot_12_2022
-
-
+sd(tahoe_12_2022[tahoe_12_2022$confidence > 2 &
+                   tahoe_12_2022$beam == 'gt1r',]$height)
 
 # 7-6-2023
-colnames(tahoe_7_2023)[4] <- 'height'
-colnames(tahoe_7_2023)[5] <- 'confidence'
-tahoe_7_2023 <- mutate(tahoe_7_2023, 
-                        Distance = distHaversine(cbind(longitude, latitude),
-                                                 cbind(lag(longitude), lag(latitude))))
-tahoe_7_2023 <- na.omit(tahoe_7_2023)
-tahoe_7_2023$along_distance <- cumsum(tahoe_7_2023$Distance)
-
 tahoe_plot_7_2023 <- ggplot(tahoe_7_2023[tahoe_7_2023$confidence > 2 &
                                            tahoe_7_2023$beam == 'gt2r',], 
                             aes(x = along_distance/1000, y = height)) + 
@@ -351,18 +331,10 @@ tahoe_plot_7_2023 <- ggplot(tahoe_7_2023[tahoe_7_2023$confidence > 2 &
   theme_classic() +
   ylim(1860, 1878)
 tahoe_plot_7_2023
-
-
+sd(tahoe_7_2023[tahoe_7_2023$confidence > 2 &
+                  tahoe_7_2023$beam == 'gt2r',]$height)
 
 # 10-4-2023
-colnames(tahoe_10_2023)[4] <- 'height'
-colnames(tahoe_10_2023)[5] <- 'confidence'
-tahoe_10_2023 <- mutate(tahoe_10_2023, 
-                        Distance = distHaversine(cbind(longitude, latitude),
-                                                 cbind(lag(longitude), lag(latitude))))
-tahoe_10_2023 <- na.omit(tahoe_10_2023)
-tahoe_10_2023$along_distance <- cumsum(tahoe_10_2023$Distance)
-
 tahoe_plot_10_2023 <- ggplot(tahoe_10_2023[tahoe_10_2023$confidence > 3 &
                                              tahoe_10_2023$beam == 'gt2r',], 
                              aes(x = along_distance/1000, y = height)) + 
@@ -372,6 +344,8 @@ tahoe_plot_10_2023 <- ggplot(tahoe_10_2023[tahoe_10_2023$confidence > 3 &
   theme_classic() +
   ylim(1860, 1878)
 tahoe_plot_10_2023
+sd(tahoe_10_2023[tahoe_10_2023$confidence > 3 &
+                   tahoe_10_2023$beam == 'gt2r',]$height)
 
 (tahoe_plot_1_2022 + tahoe_plot_12_2022) / (tahoe_plot_7_2023 + tahoe_plot_10_2023)
 
