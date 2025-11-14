@@ -329,15 +329,9 @@ for(gauge in 1:nrow(siteno)){
   }
 }
 
-write_csv(allstats, 'allstats.csv')
-allstats <- read_csv('allstats.csv')
-
-
 ################################################################################
 # random forest
 ################################################################################
-
-allstats <- read_csv('allstats.csv')
 # add in widths
 widths <- lapply(unique(allstats$gauge), downloadWidth)
 allstats$width <- NA
