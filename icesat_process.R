@@ -3,7 +3,7 @@
 # Written by Molly Stroud 5/21/25
 ###############################################################################
 require(pacman)
-p_load(ggplot2, tidyverse, geosphere, patchwork, ggside, moments, twosamples)
+p_load(ggplot2, tidyverse, geosphere, patchwork, ggside, moments, twosamples, IceSat2R)
 ###############################################################################
 
 ###############################################################################
@@ -19,7 +19,7 @@ clean_icesat <- function(dataset) {
                                                  lag(latitude))))
   data <- na.omit(data)
   data$along_distance <- cumsum(data$Distance)
-  data <- data[data$confidence > 3,] # get only good data
+  data <- data[data$confidence > 4,] # get only good data
   return(data)
 }
 
@@ -29,16 +29,16 @@ clean_icesat <- function(dataset) {
 photon_stats <- function(clear, turbid) {
   print(paste0("Clear stdev = ", sd(clear$height)))
   print(paste0("Turbid stdev = ", sd(turbid$height)))
-  print(paste0("Clear skewness = ", moments::skewness(clear$height)))
-  print(paste0("Turbid skewness = ", moments::skewness(turbid$height)))
-  print(paste0("Clear kurtosis = ", moments::kurtosis(clear$height)))
-  print(paste0("Turbid kurtosis = ", moments::kurtosis(turbid$height)))
+  # print(paste0("Clear skewness = ", moments::skewness(clear$height)))
+  # print(paste0("Turbid skewness = ", moments::skewness(turbid$height)))
+  # print(paste0("Clear kurtosis = ", moments::kurtosis(clear$height)))
+  # print(paste0("Turbid kurtosis = ", moments::kurtosis(turbid$height)))
 }
 
 ###############################################################################
 # cedar lake, canada
 ###############################################################################
-cedar <- clean_icesat("/Users/mollystroud/Desktop/icesat/icesat_2023-08-17.csv")  
+cedar <- clean_icesat("/Users/mollystroud/Desktop/PhD work/icesat/icesat_2023-08-17.csv")  
 cedar <- cedar[cedar$along_distance >= 4000 & cedar$along_distance <= 46500,]
 cedar <- cedar[cedar$height < 227,] # remove above-surface returns
 
@@ -64,6 +64,7 @@ cedar_density <- ggplot() +
   geom_density(data = cedar[cedar$along_distance/1000 > 25,],
                  aes(y = height), color = '#E63A47', linewidth = 1) +
   theme_classic() +
+  scale_x_log10() +
   ylim(220, 228)# + xlim(0, 0.5)
 cedar_density
 ggsave(plot = cedar_density, "cedar_density.pdf", width = 2, height = 5)
@@ -82,13 +83,42 @@ ggsave(plot = cedar_density_subset, "cedar_density_subset.pdf", width = 2, heigh
 clear_cedar <- cedar[cedar$along_distance/1000 < 25,]
 turb_cedar <- cedar[cedar$along_distance/1000 > 25,]
 photon_stats(clear_cedar, turb_cedar)
+
+summary(clear_cedar$height)
+summary(turb_cedar$height)
+
+
+# mean of lower quartile
+clear_q1 <- clear_cedar |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+)
+clear_q1$mean_lower_quartile
+turb_q1 <- turb_cedar |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+turb_q1$mean_lower_quartile
+
+
 ks.test(x = clear_cedar$height, y = turb_cedar$height)
 ad_test(clear_cedar$height, turb_cedar$height)
+
+
+
+### plot density in horizontal direction
+cedar_density_along_dist <- ggplot() +
+  geom_histogram(data = cedar, aes(along_distance/1000), binwidth = 1) +
+  theme_classic() +
+  labs(x = "Distance (km)", y = "Density of photon returns")
+cedar_density_along_dist
 
 ###############################################################################
 # lake buchanan, tx
 ###############################################################################
-buchanan <- clean_icesat("/Users/mollystroud/Desktop/icesat/icesat_2024-09-07.csv")  
+buchanan <- clean_icesat("/Users/mollystroud/Desktop/PhD work/icesat/icesat_2024-09-07.csv")  
 buchanan <- buchanan[buchanan$along_distance >= 2500 & buchanan$along_distance <= 16000,]
 buchanan <- buchanan[buchanan$height < 281.5,]
 
@@ -110,6 +140,7 @@ buchanan_density <- ggplot() +
   geom_density(data = buchanan[buchanan$along_distance/1000 < 6.5,],
                aes(y = height), color = '#E63A47', linewidth = 1) +
   theme_classic() +
+  scale_x_log10() +
   ylim(276, 283)
   #xlim(0, 0.5)
 #ylim(218, 226) + xlim(0, 0.5)
@@ -132,13 +163,41 @@ ggsave(plot = buchanan_density_subset, "buchanan_density_subset.pdf", width = 2,
 clear_buchanan <- buchanan[buchanan$along_distance/1000 > 6.5,]
 turb_buchanan <- buchanan[buchanan$along_distance/1000 < 6.5,]
 photon_stats(clear_buchanan, turb_buchanan)
+
+summary(clear_buchanan$height)
+summary(turb_buchanan$height)
+
 ks.test(x = clear_buchanan$height, y = turb_buchanan$height)
 ad_test(clear_buchanan$height, turb_buchanan$height)
+
+
+# mean of lower quartile
+clear_b_q1 <- clear_buchanan |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+clear_b_q1$mean_lower_quartile
+turb_b_q1 <- turb_buchanan |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+turb_b_q1$mean_lower_quartile
+
+
+
+### plot density in horizontal direction
+buchanan_density_along_dist <- ggplot() +
+  geom_histogram(data = buchanan, aes(along_distance/1000), binwidth = 1) +
+  theme_classic() +
+  labs(x = "Distance (km)", y = "Density of photon returns")
+buchanan_density_along_dist
 
 ###############################################################################
 # amazon confluence
 ###############################################################################
-amazon <- clean_icesat("/Users/mollystroud/Desktop/icesat/amazon_madeira/icesat_2022-09-02.csv")
+amazon <- clean_icesat("/Users/mollystroud/Desktop/PhD work/icesat/amazon_madeira/icesat_2022-09-02.csv")
 amazon <- amazon[amazon$along_distance >= 4000 & amazon$along_distance <= 14000,]
 
 amazon_plot <- ggplot() +
@@ -181,11 +240,35 @@ ggsave(plot = amazon_density_subset, "amazon_density_subset.pdf", width = 2, hei
 clear_amazon <- amazon[amazon$along_distance/1000 < 8.8,]
 turb_amazon <- amazon[amazon$along_distance/1000 > 8.8,]
 photon_stats(clear_amazon, turb_amazon)
+
+summary(clear_amazon$height)
+summary(turb_amazon$height)
+
 ks.test(x = clear_amazon$height, y = turb_amazon$height)
 ad_test(clear_amazon$height, turb_amazon$height)
 
+
+
+# mean of lower quartile
+clear_a_q1 <- clear_amazon |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+clear_a_q1$mean_lower_quartile
+turb_a_q1 <- turb_amazon |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+turb_a_q1$mean_lower_quartile
+
+
+
+
+
 # amazon 2024
-amazon_w <- clean_icesat("/Users/mollystroud/Desktop/icesat/amazon_madeira/icesat_2024-08-16.csv")
+amazon_w <- clean_icesat("/Users/mollystroud/Desktop/PhD work/icesat/amazon_madeira/icesat_2024-08-16.csv")
 amazon_w <- amazon_w[amazon_w$along_distance >= 4300 & amazon_w$along_distance <= 16000,]
 
 ggplot()+
@@ -237,10 +320,28 @@ turb_amazon_w <- amazon_w[amazon_w$along_distance/1000 < 10.5,]
 photon_stats(clear_amazon_w, turb_amazon_w)
 ks.test(x = clear_amazon_w$height, y = turb_amazon_w$height)
 
+
+# mean of lower quartile
+clear_aw_q1 <- clear_amazon_w |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+clear_aw_q1$mean_lower_quartile
+turb_aw_q1 <- turb_amazon_w |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+turb_aw_q1$mean_lower_quartile
+
+
+
+
 ###############################################################################
 # ohio / mississippi confluence
 ###############################################################################
-cairo <- clean_icesat("/Users/mollystroud/Desktop/icesat/icesat_2024-04-25_cairo.csv")
+cairo <- clean_icesat("/Users/mollystroud/Desktop/PhD work/icesat/icesat_2024-04-25_cairo.csv")
 cairo <- cairo[cairo$along_distance >= 400 & cairo$along_distance <= 2000,]
 
 cairo_plot <- ggplot() +
@@ -286,6 +387,111 @@ turb_cairo <- cairo[cairo$along_distance/1000 > 1,]
 photon_stats(clear_cairo, turb_cairo)
 ks.test(x = clear_cairo$height, y = turb_cairo$height)
 ad_test(clear_buchanan$height, turb_cairo$height)
+
+# mean of lower quartile
+clear_c_q1 <- clear_cairo |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+clear_c_q1$mean_lower_quartile
+turb_c_q1 <- turb_cairo |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+turb_c_q1$mean_lower_quartile
+
+
+#####################################################################
+
+# now, find a working example
+test <- get_atlas_data(
+  "-89.1683",
+  "36.9689",
+  "-89.106",
+  "37.01",
+  "2024-07-25",
+  "576",
+  beamName = NULL,
+  product = "atl03",
+  client = "portal",
+  photonConfidence = NULL,
+  sampling = FALSE,
+  outputFormat = "csv",
+  file_path_zip = NULL,
+  download_method = "curl",
+  verbose = FALSE
+)
+
+cairo_working <- clean_icesat("/Users/mollystroud/Desktop/PhD work/icesat/icesat_2024-07-25.csv") |>
+  filter(confidence > 3)
+cairo_working <- mutate(cairo_working, # get along-track distance
+               Distance = distHaversine(cbind(longitude, latitude),
+                                        cbind(lag(longitude), 
+                                              lag(latitude))))
+cairo_working <- na.omit(cairo_working)
+cairo_working$along_distance <- cumsum(cairo_working$Distance)
+
+cairo_working <- cairo_working[cairo_working$along_distance > 650,]
+cairo_working <- cairo_working[cairo_working$height > 55 & 
+                                 cairo_working$height < 62,]
+# plot
+cairo_working_plot <- ggplot(cairo_working, aes(x = along_distance/1000, y = `photon height`)) +
+  geom_point(data = cairo_working[cairo_working$along_distance/1000 > 2,], 
+             aes(x = along_distance/1000, y = height),
+             size = 0.5, color = '#E63A47') + 
+  geom_point(data = cairo_working[cairo_working$along_distance/1000 < 2,], 
+             aes(x = along_distance/1000, y = height),
+             size = 0.5, color = '#4EA699') +
+  theme_classic() +
+  ylim(55, 63) +
+  labs(x = 'Along-Track Distance (km)', y = 'Height (m)')
+cairo_working_plot
+ggsave(plot = cairo_working_plot, "cairo_working_returns.pdf", width = 5, height = 4)
+
+# density
+cairo_density_plot_working <- ggplot() +
+  geom_density(data = cairo_working[cairo_working$along_distance/1000 > 2,],
+               aes(y = height), color = '#E63A47', linewidth = 1) +
+  geom_density(data = cairo_working[cairo_working$along_distance/1000 < 2,],
+               aes(y = height), color = '#4EA699', linewidth = 1) +
+  ylim(55, 63) +
+  theme_classic()
+#xlim(0, 1)
+#ylim(218, 226) + xlim(0, 0.5)
+cairo_density_plot_working
+ggsave(plot = cairo_density_plot_working, "cairo_density_working.pdf", width = 2, height = 5)
+
+# subset
+cairo_density_subset_working <- ggplot() +
+  geom_density(data = cairo_working[cairo_working$along_distance/1000 > 2,],
+               aes(y = height), color = '#E63A47', linewidth = 1) +
+  geom_density(data = cairo_working[cairo_working$along_distance/1000 < 2,],
+               aes(y = height), color = '#4EA699', linewidth = 1) +
+  theme_classic() +
+  coord_cartesian(ylim = c(58, 6), xlim = c(0, 0.05))
+cairo_density_subset_working
+ggsave(plot = cairo_density_subset_working, "cairo_density_subset_working.pdf", 
+       width = 2, height = 5)
+
+# calculate stats
+clear_cairo_w <- cairo_working[cairo_working$along_distance/1000 < 2,]
+turb_cairo_w <- cairo_working[cairo_working$along_distance/1000 > 2,]
+photon_stats(clear_cairo_w, turb_cairo_w)
+# mean of lower quartile
+clear_cw_q1 <- clear_cairo_w |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+clear_cw_q1$mean_lower_quartile
+turb_cw_q1 <- turb_cairo_w |>
+  summarise(
+    q1 = quantile(height, 0.25, na.rm = TRUE),
+    mean_lower_quartile = mean(height[height <= q1], na.rm = TRUE)
+  )
+turb_cw_q1$mean_lower_quartile
 
 
 ###############################################################################
