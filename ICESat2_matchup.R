@@ -10,8 +10,8 @@ require(pacman)
 p_load(rstac, gdalcubes, sf, stars, terra, tidyverse, geosphere, IceSat2R)
 
 # User parameters
-set.seed(10)
 N_LAKES      <- 100
+RANDOM_SEED  <- 5
 MIN_LAKE_KM2 <- 10
 DAY_WINDOW   <- 3 # +/- days between ICESat-2 overpass and HLS image
 TARGET_BINS  <- 30
@@ -22,12 +22,14 @@ MIN_MATCHUPS_PER_LAKE <- 2
 TRACK_DIR <- "ICESat2_groundtracks_WesternHem"   # holds per-cycle .kmz files
 GDB       <- "HydroLAKES_polys_v10.gdb/HydroLAKES_polys_v10.gdb"
 GDB_LAYER <- "HydroLAKES_polys_v10"
-OUT_CSV   <- "icesat2_ndti_matchup_seed50_100lakes.csv"
-PHOTON_DIR <- "matchup_photons"                  # per-matchup raw ATL03 CSVs
+# New output/cache names so the single-strength (right-beam-only) run is preserved
+OUT_CSV   <- "icesat2_ndti_matchup_6beam.csv"
+PHOTON_DIR <- "matchup_photons_6beam"            # per-matchup raw ATL03 CSVs (6 beams)
 CANDIDATE_RDS <- "lakes_candidates.rds"          # cached lake/track screen
 dir.create(PHOTON_DIR, showWarnings = FALSE)
 
 pc <- stac("https://planetarycomputer.microsoft.com/api/stac/v1")
+source("beam_strength.R")
 
 ###############################################################################
 # Function 1: read ground tracks and find lakes that tracks cross
@@ -191,7 +193,7 @@ get_icesat_photons <- function(matchup) {
     maxx = matchup$xmax, maxy = matchup$ymax,
     date = as.character(matchup$icesat_date),
     trackId = as.character(matchup$trackId),
-    beamName = c("gt1r", "gt2r", "gt3r"),
+    beamName = c("gt1l", "gt1r", "gt2l", "gt2r", "gt3l", "gt3r"),
     product = "atl03", client = "portal",
     photonConfidence = c("low", "medium", "high"),
     sampling = FALSE, outputFormat = "csv",
@@ -249,55 +251,74 @@ photons_to_ndti <- function(photons, matchup, lake_geom, lake_buffer_m = 30) {
   photons <- photons[photons$confidence > 3, ]
   if (nrow(photons) < 10) return(NULL)
 
+  # strong vs weak is a property of the overpass (yaw), so it follows the date
+  photons$beam_type <- beam_strength(photons$beam, matchup$icesat_date)
+  photons <- photons[!is.na(photons$beam_type), ]
+  if (nrow(photons) < 10) return(NULL)
+
   mask_sf <- st_as_sf(photons, coords = c("longitude", "latitude"), crs = 4326)
   over_water <- lengths(st_intersects(mask_sf, st_buffer(lake_geom, lake_buffer_m))) > 0
   photons <- photons[over_water, ]
   if (nrow(photons) < 10) return(NULL)
 
-  photons <- mutate(photons,
-                    Distance = distHaversine(cbind(longitude, latitude),
-                                             cbind(lag(longitude), lag(latitude))))
-  photons <- na.omit(photons)
-  photons$along_distance <- cumsum(photons$Distance)
-
-  span <- max(photons$along_distance, na.rm = TRUE)
-  if (span <= 0) return(NULL)
-  bin_size <- span / TARGET_BINS                 # adaptive bin size
-  photons$track_bin <- floor(photons$along_distance / bin_size)
-
+  # NDTI is a per-photon lookup shared by all beams, so fetch HLS once
   pts_sf <- st_as_sf(photons, coords = c("longitude", "latitude"), crs = 4326)
   ndti <- get_hls_ndti_at_points(pts_sf, as.Date(matchup$icesat_date))
   if (is.null(ndti)) return(NULL)
   photons$NDTI <- ndti
 
-  track_points <- photons |>
-    group_by(track_bin) |>
-    summarise(lon = mean(longitude), lat = mean(latitude), .groups = "drop")
+  # Bin each beam separately
+  bin_one_beam <- function(p) {
+    if (nrow(p) < 10) return(NULL)
+    p <- mutate(p,
+                Distance = distHaversine(cbind(longitude, latitude),
+                                         cbind(lag(longitude), lag(latitude))))
+    p <- na.omit(p)
+    p$along_distance <- cumsum(p$Distance)
 
-  photon_stats <- photons |>
-    group_by(track_bin) |>
-    summarise(photon_count = n(),
-              max_depth    = max(height, na.rm = TRUE),
-              mean_depth   = mean(height, na.rm = TRUE),
-              depth_sd     = sd(height,  na.rm = TRUE),
-              deep_fraction = mean(height > 1, na.rm = TRUE),
-              NDTI         = mean(NDTI, na.rm = TRUE),
-              .groups = "drop")
+    span <- max(p$along_distance, na.rm = TRUE)
+    if (span <= 0) return(NULL)
+    bin_size <- span / TARGET_BINS               # adaptive bin size
+    p$track_bin <- floor(p$along_distance / bin_size)
 
-  data <- merge(photon_stats, track_points, by = "track_bin")
-  data <- data[complete.cases(data), ]
-  if (nrow(data) == 0) return(NULL)
+    track_points <- p |>
+      group_by(track_bin) |>
+      summarise(lon = mean(longitude), lat = mean(latitude), .groups = "drop")
+
+    photon_stats <- p |>
+      group_by(track_bin) |>
+      summarise(photon_count  = n(),
+                max_depth     = max(height, na.rm = TRUE),
+                mean_depth    = mean(height, na.rm = TRUE),
+                depth_sd      = sd(height,  na.rm = TRUE),
+                deep_fraction = mean(height > 1, na.rm = TRUE),
+                NDTI          = mean(NDTI, na.rm = TRUE),
+                .groups = "drop")
+
+    d <- merge(photon_stats, track_points, by = "track_bin")
+    d <- d[complete.cases(d), ]
+    if (nrow(d) == 0) return(NULL)
+    d$bin_size_m <- bin_size
+    d$beam_type  <- p$beam_type[1]
+    d$beam       <- p$beam[1]
+    d
+  }
+
+  data <- do.call(rbind, lapply(split(photons, photons$beam), bin_one_beam))
+  if (is.null(data) || nrow(data) == 0) return(NULL)
+  rownames(data) <- NULL
+
+  
+  data$track_bin <- (as.integer(factor(data$beam)) - 1L) * TARGET_BINS + data$track_bin
 
   data$hylak_id    <- matchup$hylak_id
   data$lake_name   <- matchup$lake_name
   data$trackId     <- matchup$trackId
   data$icesat_date <- as.character(matchup$icesat_date)
-  data$bin_size_m  <- bin_size
-  # align with OUT_CSV header so appended rows land in the right columns
-  data <- data[, c("track_bin", "photon_count", "max_depth", "mean_depth",
-                   "depth_sd", "deep_fraction", "NDTI", "hylak_id", "lake_name",
-                   "trackId", "icesat_date", "bin_size_m", "lon", "lat")]
-  data
+  data <- data[, c("track_bin", "beam_type", "photon_count", "max_depth",
+                   "mean_depth", "depth_sd", "deep_fraction", "NDTI", "hylak_id",
+                   "lake_name", "trackId", "icesat_date", "bin_size_m", "lon", "lat")]
+  as_tibble(data)
 }
 
 ###############################################################################
@@ -314,15 +335,16 @@ run_matchup <- function() {
     saveRDS(lakes, CANDIDATE_RDS)
   }
   
+  set.seed(RANDOM_SEED)                        # deterministic lake draw
   lakes <- lakes[sample(nrow(lakes)), ]
 
   if (!file.exists(OUT_CSV)) {
     write_csv(data.frame(
-      track_bin = numeric(), photon_count = numeric(), max_depth = numeric(),
-      mean_depth = numeric(), depth_sd = numeric(), deep_fraction = numeric(),
-      NDTI = numeric(), hylak_id = numeric(), lake_name = character(),
-      trackId = numeric(), icesat_date = character(), bin_size_m = numeric(),
-      lon = numeric(), lat = numeric()), OUT_CSV)
+      track_bin = numeric(), beam_type = character(), photon_count = numeric(),
+      max_depth = numeric(), mean_depth = numeric(), depth_sd = numeric(),
+      deep_fraction = numeric(), NDTI = numeric(), hylak_id = numeric(),
+      lake_name = character(), trackId = numeric(), icesat_date = character(),
+      bin_size_m = numeric(), lon = numeric(), lat = numeric()), OUT_CSV)
   }
 
   
