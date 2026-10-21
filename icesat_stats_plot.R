@@ -19,7 +19,7 @@ clean_icesat <- function(dataset) {
                                                  lag(latitude))))
   data <- na.omit(data)
   data$along_distance <- cumsum(data$Distance)
-  data <- data[data$confidence > 4,] # get only good data
+  data <- data[data$confidence >= 4,] # get only good data
   return(data)
 }
 
