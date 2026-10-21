@@ -1,5 +1,4 @@
-# This code will download all available ICESat-2 data from a location in the 
-# Ohio River Basin
+# This code will download all available ICESat-2 data
 # Load in libraries
 library(IceSat2R)
 library(tidyr)
@@ -20,6 +19,7 @@ library(ranger)
 
 ################################################################################
 # region of interest
+# ex
 bbox <- c(xmin = -87, ymin = 35, xmax = -83, ymax = 39)
 # tss
 param_codes <- c("63680")
@@ -270,8 +270,8 @@ for(gauge in 1:nrow(siteno)){
 
 ################################################################################
 # get statistics on all paired data
-siteno <- siteno[c(2, 24),]
-siteno <- siteno[2,]
+#siteno <- siteno[c(2, 24),]
+#siteno <- siteno[2,]
 
 allstats <- data.frame()
 for(gauge in 1:nrow(siteno)){
@@ -280,7 +280,7 @@ for(gauge in 1:nrow(siteno)){
     stats <- data.frame()
     for(file in clippedbeams) {
       data <- read_csv(paste0('turbidity/', siteno$site_no[gauge], '/', file)) # read in
-      #if(max(data$confidence) < 3) next # if the confidence code are all low, skip
+      if(max(data$confidence) < 4) next # if the confidence code are all low, skip
       data$time <- format(as.POSIXct(data$datetime), "%H:%M:%S") # date time format
       #if(data$time[1] >= "19:00:00" || data$time[1] <= "07:00:00") next # get only in day
       #if(data$time[1] <= "19:00:00" & data$time[1] >= "07:00:00") next # get only in night
@@ -294,15 +294,10 @@ for(gauge in 1:nrow(siteno)){
       dischargem <- discharge[discharge$dateTime >= data$datetime[1] - 2000 & discharge$dateTime <= data$datetime[1] + 2000,]
       print(dischargem$X_00060_00000)
       
-      data <- data[data$confidence < 4, ] # only where confidence is as specified
+      #data <- data[data$confidence < 4, ] # only where confidence is as specified
       ## GET MEDIAN
       surfaceheight <- mean(data$h_te_best_fit) # get surface height
       data <- data[data$height < surfaceheight, ]
-      
-      
-
-
-
       if(nrow(data) < 5) next
       npoints <- nrow(data) # get number of points to normalize
       distance <- distm(c(min(data$long), min(data$lat)), c(max(data$long), max(data$lat))) # get distance
@@ -329,21 +324,15 @@ for(gauge in 1:nrow(siteno)){
   }
 }
 
+write_csv(allstats, 'allstats.csv')
+allstats <- read_csv('allstats.csv')
+
+
 ################################################################################
 # random forest
 ################################################################################
-# add in widths
-widths <- lapply(unique(allstats$gauge), downloadWidth)
-allstats$width <- NA
-for(i in 1:length(unique(allstats$gauge))) {
-  width <- colMeans(data.frame(widths[[i]]$w_m), na.rm = T)
-  site_no <- widths[[i]]$site_no[1]
-  for(j in 1:nrow(allstats)) {
-    if(allstats$gauge[j] == site_no) {
-      allstats$width[j] <- width
-    } else {next}
-  }
-}
+
+allstats <- read_csv('allstats.csv')
 
 # organize data for rf
 allstats$beam <- as.factor(allstats$beam)
@@ -354,26 +343,62 @@ allstats <- na.omit(allstats)
 # average identical beams
 
 
-set.seed(123) # for replicability
-# create training sample partition (70 for training)
 library(caret)
-train <- createDataPartition(allstats, p = .7, times = 1, list = F)
 
+# 70/30 split stratified on the outcome. The held-out 30% is used once, at the end.
+set.seed(123)
+idx <- createDataPartition(allstats$tss, p = 0.7, times = 1, list = FALSE)
+train_df <- allstats[idx, ]
+test_df  <- allstats[-idx, ]
 
-rf_test <- ranger(tss ~ ., data = allstats[train,], importance = 'permutation')
-rf_test
+# Hyperparameters are tuned by 10-fold CV *within* train_df, so test_df stays
+# untouched:
+#   mtry           predictors sampled at each split; larger values give stronger
+#                  individual trees but more correlated ones
+#   min.node.size  minimum terminal node size; 1 grows deep trees, larger values
+#                  smooth the fit, which usually helps with noisy data and small n
+# num.trees is fixed at 500: past a few hundred, more trees mainly reduce Monte
+# Carlo variance rather than change the fit, so it is not worth a tuning slot.
+rf_grid <- expand.grid(
+  mtry = c(2, 3, 4, 5),
+  splitrule = 'variance',
+  min.node.size = c(1, 3, 5, 10)
+)
 
-p.r <- predict(rf_test, allstats[-tr, -1],
-               type = 'quantiles')
+set.seed(456)
+rf_tuned <- train(
+  tss ~ .,
+  data = train_df,
+  method = 'ranger',
+  tuneGrid = rf_grid,
+  trControl = trainControl(method = 'cv', number = 10, savePredictions = 'final'),
+  metric = 'RMSE',
+  num.trees = 500,
+  importance = 'permutation'
+)
 
-predictions <- ranger::predictions(rf_test, allstats$tss)
-preds <- data.frame(cbind(allstats$tss, predictions))
-ggplot(preds, aes(x = V1, y = predictions)) +
+rf_tuned          # CV metrics for every combination in the grid
+ggplot(rf_tuned) + theme_bw()   # RMSE versus each tuning parameter
+rf_tuned$bestTune
+
+# caret refits the best combination on all of train_df; that ranger object is the
+# final model
+rf_final <- rf_tuned$finalModel
+rf_final$variable.importance
+
+# error on the held-out 30% only
+preds <- data.frame(
+  measured = test_df$tss,
+  predicted = predict(rf_tuned, newdata = test_df)
+)
+
+postResample(preds$predicted, preds$measured)
+
+ggplot(preds, aes(x = measured, y = predicted)) +
   geom_point(size = 2) +
   theme_bw() +
-  labs(x = 'Measured TSS', y = 'Predicted TSS') +
-  geom_abline(slope = 1, intercept = 0) +
-  xlim(0, 150) + ylim(0, 150)
+  labs(x = 'Measured turbidity', y = 'Predicted turbidity') +
+  geom_abline(slope = 1, intercept = 0)
 
 
 
