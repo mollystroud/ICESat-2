@@ -6,8 +6,8 @@ require(pacman)
 p_load(ggplot2, tidyverse, IceSat2R, geosphere, patchwork)
 ###############################################################################
 # get dates from our tahoe data
-tahoe_LTP <- read_csv("/Users/mollystroud/Desktop/icesat/datasets/LakeTahoe_2022_2023/Tahoe_LTP_CTD_Data_matches.csv")
-tahoe_MLTP <- read_csv("/Users/mollystroud/Desktop/icesat/datasets/LakeTahoe_2022_2023/Tahoe_MLTP_CTD_Data_matches.csv")
+tahoe_LTP <- read_csv("/datasets/LakeTahoe_2022_2023/Tahoe_LTP_CTD_Data_matches.csv")
+tahoe_MLTP <- read_csv("/datasets/LakeTahoe_2022_2023/Tahoe_MLTP_CTD_Data_matches.csv")
 tahoe_LTP$Date_Formatted <- as.Date(tahoe_LTP$Date, format="%m/%d/%y")
 tahoe_MLTP$Date_Formatted <- as.Date(tahoe_MLTP$Date, format="%m/%d/%y")
 # get all dates within 3 days of sampling
